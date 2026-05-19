@@ -1,0 +1,49 @@
+# Output files
+output/
+*.png
+*.jpg
+*.jpeg
+*.usd
+*.usda
+*.usdc
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.eggs/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+.DS_Store
+
+# Credentials & secrets
+*.pem
+*.key
+.env.local
+.env.production
+credentials
+**/secrets/
+**/*token*
+**/*secret*
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/

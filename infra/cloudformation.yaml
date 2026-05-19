@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Physical AI Simulation Memory - DynamoDB + S3 + Bedrock Knowledge Base
+
+Resources:
+  # IAM Role for Bedrock Knowledge Base
+  BedrockKBRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: physical-ai-bedrock-kb-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::physical-ai-sim-knowledge-${AWS::AccountId}
+                  - !Sub arn:aws:s3:::physical-ai-sim-knowledge-${AWS::AccountId}/*
+        - PolicyName: BedrockModelAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+
+  # Bedrock Knowledge Base
+  SimKnowledgeBase:
+    Type: AWS::Bedrock::KnowledgeBase
+    DependsOn: BedrockKBRole
+    Properties:
+      Name: physical-ai-sim-kb
+      Description: Simulation experience and robot control knowledge for Sim2Real transfer
+      RoleArn: !GetAtt BedrockKBRole.Arn
+      KnowledgeBaseConfiguration:
+        Type: VECTOR
+        VectorKnowledgeBaseConfiguration:
+          EmbeddingModelArn: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+      StorageConfiguration:
+        Type: OPENSEARCH_SERVERLESS
+        OpensearchServerlessConfiguration:
+          CollectionArn: !GetAtt KBCollection.Arn
+          VectorIndexName: physical-ai-sim-index
+          FieldMapping:
+            VectorField: embedding
+            TextField: text
+            MetadataField: metadata
+
+  # OpenSearch Serverless Collection for vector store
+  KBCollection:
+    Type: AWS::OpenSearchServerless::Collection
+    DependsOn:
+      - EncryptionPolicy
+      - NetworkPolicy
+      - DataAccessPolicy
+    Properties:
+      Name: physical-ai-sim
+      Type: VECTORSEARCH
+      Description: Vector store for Physical AI simulation knowledge
+
+  EncryptionPolicy:
+    Type: AWS::OpenSearchServerless::SecurityPolicy
+    Properties:
+      Name: physical-ai-sim-enc
+      Type: encryption
+      Policy: !Sub >-
+        {"Rules":[{"ResourceType":"collection","Resource":["collection/physical-ai-sim"]}],"AWSOwnedKey":true}
+
+  NetworkPolicy:
+    Type: AWS::OpenSearchServerless::SecurityPolicy
+    Properties:
+      Name: physical-ai-sim-net
+      Type: network
+      Policy: !Sub >-
+        [{"Rules":[{"ResourceType":"collection","Resource":["collection/physical-ai-sim"]},{"ResourceType":"dashboard","Resource":["collection/physical-ai-sim"]}],"AllowFromPublic":true}]
+
+  DataAccessPolicy:
+    Type: AWS::OpenSearchServerless::AccessPolicy
+    Properties:
+      Name: physical-ai-sim-access
+      Type: data
+      Policy: !Sub >-
+        [{"Rules":[{"ResourceType":"collection","Resource":["collection/physical-ai-sim"],"Permission":["aoss:*"]},{"ResourceType":"index","Resource":["index/physical-ai-sim/*"],"Permission":["aoss:*"]}],"Principal":["arn:aws:iam::${AWS::AccountId}:role/physical-ai-bedrock-kb-role","arn:aws:iam::${AWS::AccountId}:role/physicalAI-GPU-OpenClawInstanceRole-tCTAqs28iode"]}]
+
+  # S3 Data Source for KB
+  SimDataSource:
+    Type: AWS::Bedrock::DataSource
+    Properties:
+      KnowledgeBaseId: !Ref SimKnowledgeBase
+      Name: sim-knowledge-docs
+      DataSourceConfiguration:
+        Type: S3
+        S3Configuration:
+          BucketArn: !Sub arn:aws:s3:::physical-ai-sim-knowledge-${AWS::AccountId}
+          InclusionPrefixes:
+            - docs/
+
+Outputs:
+  KnowledgeBaseId:
+    Value: !Ref SimKnowledgeBase
+    Description: Bedrock Knowledge Base ID
+  DynamoDBTable:
+    Value: sim-episodes
+    Description: DynamoDB table for simulation episodes
+  S3Bucket:
+    Value: !Sub physical-ai-sim-knowledge-${AWS::AccountId}
+    Description: S3 bucket for knowledge documents
+  CollectionEndpoint:
+    Value: !GetAtt KBCollection.CollectionEndpoint
+    Description: OpenSearch Serverless endpoint
