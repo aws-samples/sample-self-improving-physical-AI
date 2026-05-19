@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SO-ARM101 (SO-101) URDF Model
+  Based on Hiwonder LeRobot SO-ARM101 / TheRobotStudio SO-ARM100 design
+  
+  6-DOF robotic arm with:
+  - Joint 1: Base rotation (yaw)
+  - Joint 2: Shoulder pitch
+  - Joint 3: Elbow pitch
+  - Joint 4: Wrist pitch
+  - Joint 5: Wrist roll
+  - Joint 6: Gripper (open/close)
+  
+  Servos: Feetech STS3215 (30KG high-torque with magnetic feedback)
+  Workspace: ~280mm reach
+  Weight: ~1.2kg
+-->
+<robot name="so_arm101">
+  
+  <!-- ==================== MATERIALS ==================== -->
+  <material name="white">
+    <color rgba="0.95 0.95 0.95 1.0"/>
+  </material>
+  <material name="dark_grey">
+    <color rgba="0.2 0.2 0.2 1.0"/>
+  </material>
+  <material name="blue">
+    <color rgba="0.1 0.4 0.8 1.0"/>
+  </material>
+  <material name="orange">
+    <color rgba="1.0 0.5 0.0 1.0"/>
+  </material>
+  <material name="black">
+    <color rgba="0.05 0.05 0.05 1.0"/>
+  </material>
+
+  <!-- ==================== BASE LINK ==================== -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.07 0.07 0.005"/>
+      </geometry>
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.07 0.07 0.005"/>
+      </geometry>
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.15"/>
+      <origin xyz="0 0 0.0025"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <!-- ==================== BASE MOTOR HOUSING ==================== -->
+  <link name="base_motor">
+    <visual>
+      <geometry>
+        <cylinder radius="0.025" length="0.04"/>
+      </geometry>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.025" length="0.04"/>
+      </geometry>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.08"/>
+      <origin xyz="0 0 0.02"/>
+      <inertia ixx="0.00003" ixy="0" ixz="0" iyy="0.00003" iyz="0" izz="0.00002"/>
+    </inertial>
+  </link>
+
+  <joint name="base_to_motor" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_motor"/>
+    <origin xyz="0 0 0.005" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ==================== LINK 1: SHOULDER YAW ==================== -->
+  <link name="shoulder_link">
+    <visual>
+      <geometry>
+        <box size="0.04 0.04 0.055"/>
+      </geometry>
+      <origin xyz="0 0 0.0275" rpy="0 0 0"/>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.04 0.04 0.055"/>
+      </geometry>
+      <origin xyz="0 0 0.0275" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.12"/>
+      <origin xyz="0 0 0.0275"/>
+      <inertia ixx="0.00005" ixy="0" ixz="0" iyy="0.00005" iyz="0" izz="0.00003"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_1" type="revolute">
+    <parent link="base_motor"/>
+    <child link="shoulder_link"/>
+    <origin xyz="0 0 0.04" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159" upper="3.14159" effort="30.0" velocity="5.0"/>
+    <dynamics damping="0.1" friction="0.05"/>
+  </joint>
+
+  <!-- ==================== LINK 2: SHOULDER PITCH ==================== -->
+  <link name="upper_arm_link">
+    <visual>
+      <geometry>
+        <box size="0.035 0.04 0.095"/>
+      </geometry>
+      <origin xyz="0 0 0.0475" rpy="0 0 0"/>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.035 0.04 0.095"/>
+      </geometry>
+      <origin xyz="0 0 0.0475" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.15"/>
+      <origin xyz="0 0 0.0475"/>
+      <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.00003"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_2" type="revolute">
+    <parent link="shoulder_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0 0 0.055" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="30.0" velocity="5.0"/>
+    <dynamics damping="0.1" friction="0.05"/>
+  </joint>
+
+  <!-- ==================== LINK 3: ELBOW PITCH ==================== -->
+  <link name="forearm_link">
+    <visual>
+      <geometry>
+        <box size="0.03 0.035 0.095"/>
+      </geometry>
+      <origin xyz="0 0 0.0475" rpy="0 0 0"/>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.03 0.035 0.095"/>
+      </geometry>
+      <origin xyz="0 0 0.0475" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.12"/>
+      <origin xyz="0 0 0.0475"/>
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00008" iyz="0" izz="0.00002"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_3" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0 0 0.095" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="30.0" velocity="5.0"/>
+    <dynamics damping="0.1" friction="0.05"/>
+  </joint>
+
+  <!-- ==================== LINK 4: WRIST PITCH ==================== -->
+  <link name="wrist_pitch_link">
+    <visual>
+      <geometry>
+        <box size="0.028 0.032 0.04"/>
+      </geometry>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <material name="white"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.028 0.032 0.04"/>
+      </geometry>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.08"/>
+      <origin xyz="0 0 0.02"/>
+      <inertia ixx="0.00002" ixy="0" ixz="0" iyy="0.00002" iyz="0" izz="0.00001"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_4" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_pitch_link"/>
+    <origin xyz="0 0 0.095" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="15.0" velocity="5.0"/>
+    <dynamics damping="0.05" friction="0.03"/>
+  </joint>
+
+  <!-- ==================== LINK 5: WRIST ROLL ==================== -->
+  <link name="wrist_roll_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.015" length="0.025"/>
+      </geometry>
+      <origin xyz="0 0 0.0125" rpy="0 0 0"/>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.015" length="0.025"/>
+      </geometry>
+      <origin xyz="0 0 0.0125" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.05"/>
+      <origin xyz="0 0 0.0125"/>
+      <inertia ixx="0.000005" ixy="0" ixz="0" iyy="0.000005" iyz="0" izz="0.000003"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_5" type="revolute">
+    <parent link="wrist_pitch_link"/>
+    <child link="wrist_roll_link"/>
+    <origin xyz="0 0 0.04" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159" upper="3.14159" effort="15.0" velocity="5.0"/>
+    <dynamics damping="0.05" friction="0.03"/>
+  </joint>
+
+  <!-- ==================== LINK 6: GRIPPER BASE ==================== -->
+  <link name="gripper_base">
+    <visual>
+      <geometry>
+        <box size="0.03 0.04 0.015"/>
+      </geometry>
+      <origin xyz="0 0 0.0075" rpy="0 0 0"/>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.03 0.04 0.015"/>
+      </geometry>
+      <origin xyz="0 0 0.0075" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.04"/>
+      <origin xyz="0 0 0.0075"/>
+      <inertia ixx="0.000003" ixy="0" ixz="0" iyy="0.000003" iyz="0" izz="0.000003"/>
+    </inertial>
+  </link>
+
+  <joint name="gripper_base_joint" type="fixed">
+    <parent link="wrist_roll_link"/>
+    <child link="gripper_base"/>
+    <origin xyz="0 0 0.025" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ==================== GRIPPER LEFT FINGER ==================== -->
+  <link name="gripper_left">
+    <visual>
+      <geometry>
+        <box size="0.005 0.01 0.045"/>
+      </geometry>
+      <origin xyz="0 0 0.0225" rpy="0 0 0"/>
+      <material name="orange"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.01 0.045"/>
+      </geometry>
+      <origin xyz="0 0 0.0225" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.015"/>
+      <origin xyz="0 0 0.0225"/>
+      <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.0000002"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_6" type="revolute">
+    <parent link="gripper_base"/>
+    <child link="gripper_left"/>
+    <origin xyz="0 -0.012 0.015" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="0" upper="0.8" effort="5.0" velocity="5.0"/>
+    <dynamics damping="0.02" friction="0.01"/>
+  </joint>
+
+  <!-- ==================== GRIPPER RIGHT FINGER ==================== -->
+  <link name="gripper_right">
+    <visual>
+      <geometry>
+        <box size="0.005 0.01 0.045"/>
+      </geometry>
+      <origin xyz="0 0 0.0225" rpy="0 0 0"/>
+      <material name="orange"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.005 0.01 0.045"/>
+      </geometry>
+      <origin xyz="0 0 0.0225" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.015"/>
+      <origin xyz="0 0 0.0225"/>
+      <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.0000002"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_6_mimic" type="revolute">
+    <parent link="gripper_base"/>
+    <child link="gripper_right"/>
+    <origin xyz="0 0.012 0.015" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="0" upper="0.8" effort="5.0" velocity="5.0"/>
+    <dynamics damping="0.02" friction="0.01"/>
+    <mimic joint="joint_6" multiplier="1.0" offset="0"/>
+  </joint>
+
+  <!-- ==================== CAMERA (GRIPPER-MOUNTED) ==================== -->
+  <link name="camera_link">
+    <visual>
+      <geometry>
+        <box size="0.02 0.02 0.015"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.02 0.02 0.015"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.01"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0000005" ixy="0" ixz="0" iyy="0.0000005" iyz="0" izz="0.0000005"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="gripper_base"/>
+    <child link="camera_link"/>
+    <origin xyz="0.02 0 0.01" rpy="0 0.3 0"/>
+  </joint>
+
+  <!-- Camera optical frame (Z forward, X right, Y down) -->
+  <link name="camera_optical_frame"/>
+  
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+  </joint>
+
+  <!-- ==================== EXTERNAL CAMERA (OVERHEAD) ==================== -->
+  <link name="external_camera_link">
+    <visual>
+      <geometry>
+        <box size="0.03 0.03 0.02"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.03 0.03 0.02"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.02"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.000001" ixy="0" ixz="0" iyy="0.000001" iyz="0" izz="0.000001"/>
+    </inertial>
+  </link>
+
+  <!-- External camera mounted on a stand, looking down at workspace -->
+  <joint name="external_camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="external_camera_link"/>
+    <origin xyz="0.25 0 0.4" rpy="0 0.9 3.14159"/>
+  </joint>
+
+  <link name="external_camera_optical_frame"/>
+  
+  <joint name="external_camera_optical_joint" type="fixed">
+    <parent link="external_camera_link"/>
+    <child link="external_camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+  </joint>
+
+</robot>
