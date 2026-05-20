@@ -1,164 +1,199 @@
-# Hermes 3 — Agentic LLM for Robot Reasoning
+# Hermes Agent — The Self-Improving AI Agent
 
-[Hermes 3](https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B) by Nous Research is a generalist language model optimized for agentic capabilities, function calling, and structured output — making it ideal for robot task planning and code generation.
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research is a self-improving AI agent with a built-in learning loop. It creates skills from experience, improves them during use, persists knowledge across sessions, and runs anywhere — from a $5 VPS to a GPU cluster.
 
-## Role in This Project
+**Repo:** https://github.com/NousResearch/hermes-agent
+**Docs:** https://hermes-agent.nousresearch.com/docs/
 
-Hermes 3 serves as an **alternative/local reasoning engine** for the Physical AI agent:
-- Task decomposition (break "pick orange" into joint waypoints)
-- Function calling (invoke Isaac Sim APIs, DynamoDB queries)
-- Code generation (produce executable simulation scripts)
-- Multi-turn reasoning (iterative strategy refinement)
+## Why Hermes Agent for Physical AI
 
-## Why Hermes 3
+| Capability | Application |
+|-----------|-------------|
+| Closed learning loop | Agent creates/improves skills from robot task outcomes |
+| Skill auto-creation | Complex pick-and-place sequences become reusable skills |
+| Cross-session memory | Remembers successful strategies across restarts |
+| Multi-platform messaging | Telegram, Discord, Slack, WhatsApp, Signal |
+| Subagent delegation | Parallel simulation runs, concurrent perception tasks |
+| Scheduled automations | Periodic simulation health checks, nightly training runs |
+| Any model backend | Nous Portal, OpenRouter, AWS Bedrock, Ollama, vLLM, custom |
+| AgentSkills standard | Compatible with [agentskills.io](https://agentskills.io) open standard |
 
-| Capability | Benefit for Robotics |
-|-----------|---------------------|
-| Advanced function calling | Reliable tool use for simulation control |
-| Structured output | JSON waypoints, joint configs |
-| Agentic reasoning | Multi-step task planning |
-| Open weights | Self-hosted, no API costs, air-gapped deployments |
-| ChatML format | OpenAI-compatible, drop-in replacement |
-| Roleplaying/steering | Can adopt "robot controller" persona |
+## Installation
 
-## Available Models
-
-| Model | Size | Use Case |
-|-------|------|----------|
-| Hermes-3-Llama-3.1-8B | 8B | Fast inference, single GPU |
-| Hermes-3-Llama-3.1-70B | 70B | Best reasoning, multi-GPU |
-| Hermes-3-Llama-3.1-405B | 405B | Maximum capability |
-
-## Deployment Options
-
-### 1. AWS Bedrock (Managed)
-If available as a custom model import:
 ```bash
-# Import to Bedrock for serverless inference
-aws bedrock create-model-import-job \
-  --job-name hermes-3-import \
-  --imported-model-name hermes-3-8b \
-  --model-data-source '{"s3DataSource":{"s3Uri":"s3://your-bucket/hermes-3/"}}'
+# One-liner (Linux / macOS / WSL2)
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+
+# Or via pip
+pip install hermes-agent
+hermes postinstall  # installs Node.js, browser, ripgrep, ffmpeg
+
+# Reload shell
+source ~/.bashrc
 ```
 
-### 2. Amazon SageMaker
-```python
-from sagemaker.huggingface import HuggingFaceModel
-
-model = HuggingFaceModel(
-    model_data="s3://your-bucket/hermes-3-8b/model.tar.gz",
-    role="arn:aws:iam::ACCOUNT:role/SageMakerRole",
-    transformers_version="4.37",
-    pytorch_version="2.1",
-    py_version="py310",
-    env={
-        "HF_MODEL_ID": "NousResearch/Hermes-3-Llama-3.1-8B",
-        "SM_NUM_GPUS": "1"
-    }
-)
-predictor = model.deploy(
-    instance_type="ml.g5.2xlarge",
-    initial_instance_count=1
-)
+### Windows (PowerShell)
+```powershell
+iex (irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1)
 ```
 
-### 3. Self-Hosted (vLLM)
+## Quick Setup
+
 ```bash
-pip install vllm
-
-# Serve with OpenAI-compatible API
-python -m vllm.entrypoints.openai.api_server \
-  --model NousResearch/Hermes-3-Llama-3.1-8B \
-  --port 8000 \
-  --chat-template chatml
+hermes          # Start interactive CLI
+hermes model    # Choose LLM provider
+hermes setup    # Full setup wizard
+hermes gateway  # Start messaging gateway (Telegram, etc.)
 ```
 
-### 4. Ollama (Local)
+## Key Commands
+
+| Command | Description |
+|---------|-------------|
+| `hermes` | Interactive terminal UI |
+| `hermes model` | Select/switch LLM provider |
+| `hermes tools` | Configure available tools |
+| `hermes gateway` | Start messaging gateway |
+| `hermes claw migrate` | Migrate from OpenClaw |
+| `hermes update` | Update to latest |
+| `hermes doctor` | Diagnose issues |
+
+### In-Session Commands
+| Command | Description |
+|---------|-------------|
+| `/new` | Start fresh conversation |
+| `/model [provider:model]` | Change model mid-session |
+| `/skills` | Browse available skills |
+| `/compress` | Compress context window |
+| `/usage` | Check token usage |
+| `/retry` | Retry last response |
+
+## Model Providers
+
+Hermes supports 20+ providers with no code changes:
+
+| Provider | Setup |
+|----------|-------|
+| Nous Portal | OAuth via `hermes model` |
+| AWS Bedrock | IAM role or `aws configure` |
+| OpenRouter | API key (200+ models) |
+| Anthropic | OAuth (Max plan) or API key |
+| OpenAI / Codex | Device code auth |
+| NVIDIA NIM | `NVIDIA_API_KEY` |
+| Ollama / vLLM | Custom endpoint URL |
+| Hugging Face | `HF_TOKEN` |
+| DeepSeek | `DEEPSEEK_API_KEY` |
+
+**Minimum requirement:** 64K context window.
+
+## Core Features
+
+### 1. Closed Learning Loop
+Hermes automatically creates skills from complex tasks:
+```
+Execute complex robot task → Agent solves it → Skill auto-created
+                                                      ↓
+Next similar request → Agent uses existing skill → Skill self-improves
+```
+
+### 2. Subagent Delegation
+Spawn isolated subagents for parallel work:
 ```bash
-ollama pull hermes3:8b
-ollama serve
-# API at http://localhost:11434
+# Agent can delegate simulation runs in parallel
+# "Run 5 variations of the grasp approach simultaneously"
+# → Spawns 5 subagents, each testing a different strategy
 ```
 
-## Function Calling Format
-
-Hermes 3 uses a structured function calling format:
-
-```xml
-<|im_start|>system
-You are a robot control agent. You have access to these tools:
-<tools>
-{"type": "function", "function": {"name": "set_joint_positions", "description": "Move robot joints to target positions", "parameters": {"type": "object", "properties": {"joint_positions": {"type": "array", "items": {"type": "number"}}, "speed": {"type": "number"}}}}}
-{"type": "function", "function": {"name": "query_episodes", "description": "Query past simulation episodes from DynamoDB", "parameters": {"type": "object", "properties": {"task": {"type": "string"}, "success_only": {"type": "boolean"}}}}}
-</tools>
-<|im_end|>
-<|im_start|>user
-Pick up the orange from the counter
-<|im_end|>
-<|im_start|>assistant
-<tool_call>
-{"name": "query_episodes", "arguments": {"task": "pick_orange_to_plate", "success_only": true}}
-</tool_call>
-<|im_end|>
+### 3. Scheduled Automations
+Built-in cron for unattended work:
+```bash
+# "Every night at 2am, run 100 simulation episodes and log results"
+# "Every Monday, generate a training report from last week's episodes"
 ```
 
-## Integration with OpenClaw
+### 4. Cross-Session Memory
+- FTS5 session search with LLM summarization
+- Periodic memory nudges (agent reminds itself to persist knowledge)
+- [Honcho](https://github.com/plastic-labs/honcho) dialectic user modeling
 
-OpenClaw supports Hermes 3 as a model backend:
+### 5. Terminal Backends
+Run anywhere:
+| Backend | Use Case |
+|---------|----------|
+| Local | Development on your machine |
+| Docker | Isolated container execution |
+| SSH | Remote GPU server |
+| Modal | Serverless (hibernates when idle) |
+| Daytona | Serverless with persistence |
+| Singularity | HPC clusters |
 
+## Integration with This Platform
+
+### As Robot Controller
+```bash
+# Configure Hermes with AWS Bedrock for Claude
+hermes model  # → AWS Bedrock → Claude Sonnet
+
+# Add Isaac Sim skill
+# Hermes will auto-discover and use skills from ~/.hermes/skills/
+cp -r skill/ ~/.hermes/skills/isaac-sim/
+```
+
+### With MCP Servers
+Hermes supports MCP tool servers for DynamoDB/Bedrock KB access:
 ```json
 {
-  "models": {
-    "default": "ollama/hermes3:8b",
-    "providers": {
-      "ollama": {
-        "baseUrl": "http://localhost:11434/v1"
+  "mcp": {
+    "servers": {
+      "dynamodb": {
+        "command": "uvx",
+        "args": ["awslabs.dynamodb-mcp-server@latest"],
+        "env": {"AWS_REGION": "us-west-2"}
       }
     }
   }
 }
 ```
 
-Or via vLLM:
-```json
-{
-  "models": {
-    "default": "openai/hermes-3",
-    "providers": {
-      "openai": {
-        "baseUrl": "http://localhost:8000/v1",
-        "apiKey": "not-needed"
-      }
-    }
-  }
-}
+### Gateway for Telegram Control
+```bash
+hermes gateway setup   # Configure Telegram bot token
+hermes gateway start   # Start listening
+
+# Now message the bot: "Pick the closest orange"
+# → Agent generates Isaac Sim script
+# → Records episode to DynamoDB
+# → Reports success/failure back to Telegram
 ```
 
-## Example: Robot Task Planning
-
-**Input:** "Pick the orange closest to the robot and place it on the plate"
-
-**Hermes 3 Output:**
-```json
-{
-  "plan": [
-    {"step": 1, "action": "query_scene", "description": "Get orange positions"},
-    {"step": 2, "action": "select_target", "description": "Find closest orange to robot (2.13, -0.30)"},
-    {"step": 3, "action": "plan_approach", "description": "Calculate pre-grasp position above orange"},
-    {"step": 4, "action": "execute_grasp", "waypoints": [
-      {"name": "reach", "joints": {"shoulder_pan": -15, "shoulder_lift": -30, "elbow_flex": 60}},
-      {"name": "grasp", "joints": {"gripper": 30}},
-      {"name": "lift", "joints": {"shoulder_lift": -80}},
-      {"name": "move_to_plate", "joints": {"shoulder_pan": 25}},
-      {"name": "release", "joints": {"gripper": -10}}
-    ]}
-  ]
-}
+### Migration from OpenClaw
+```bash
+hermes claw migrate  # Migrates config, skills, and memory
 ```
+
+## Hermes vs OpenClaw
+
+Both are personal AI agents. Key differences:
+
+| | Hermes Agent | OpenClaw |
+|---|---|---|
+| Runtime | Python (uv) | Node.js |
+| Learning | Auto skill creation + improvement | Manual skill files |
+| Memory | FTS5 + Honcho user modeling | File-based (MEMORY.md) |
+| Subagents | Built-in parallel delegation | ACP runtime spawning |
+| Scheduling | Built-in cron | Built-in cron |
+| Messaging | Telegram, Discord, Slack, etc. | Same platforms |
+| Model support | 20+ providers | Multiple providers |
+| Unique | Self-improving skills, trajectory generation | Canvas, node pairing |
+
+Both work for this project. Use whichever fits your workflow.
 
 ## References
 
-- [Hermes 3 Technical Report](https://arxiv.org/abs/2408.11857)
-- [HuggingFace Model Card](https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B)
-- [Nous Research](https://nousresearch.com/)
-- [ChatML Format](https://github.com/openai/openai-python/blob/main/chatml.md)
+- [GitHub](https://github.com/NousResearch/hermes-agent)
+- [Documentation](https://hermes-agent.nousresearch.com/docs/)
+- [Quickstart](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart)
+- [Messaging Gateway](https://hermes-agent.nousresearch.com/docs/user-guide/messaging)
+- [AWS Bedrock Guide](https://hermes-agent.nousresearch.com/docs/guides/aws-bedrock)
+- [AgentSkills Standard](https://agentskills.io)
+- [Discord Community](https://discord.gg/NousResearch)

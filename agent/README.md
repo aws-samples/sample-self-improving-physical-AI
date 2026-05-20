@@ -12,11 +12,11 @@ Personal AI agent framework. Provides:
 - Agent memory for continuous improvement
 
 ### [Hermes 3](./hermes/)
-Open-weight agentic LLM (Nous Research). Provides:
-- Function calling for robot tool use
-- Structured output (joint configs, waypoints)
-- Task decomposition and planning
-- Self-hostable (no API dependency)
+Self-improving AI agent (Nous Research). Provides:
+- Auto skill creation from task outcomes
+- Cross-session memory with learning loop
+- Subagent delegation for parallel simulation
+- 20+ model providers (Bedrock, OpenRouter, Ollama, etc.)
 
 ### [AWS Deployment](./aws-deployment/)
 Complete deployment guide for running the full stack on AWS:
@@ -33,7 +33,7 @@ User (natural language)
   ▼
 OpenClaw Agent (orchestration)
   │
-  ├── LLM Backend: Hermes 3 (self-hosted) or Claude/GPT (API)
+  ├── LLM Backend: Hermes Agent or OpenClaw (any model provider)
   │
   ├── Skills: Isaac Sim control, Sim2Real commands
   │
