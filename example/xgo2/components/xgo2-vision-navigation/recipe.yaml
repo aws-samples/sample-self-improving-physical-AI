@@ -1,0 +1,71 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: com.xgo.VisionNavigation
+ComponentVersion: "{version}"
+ComponentDescription: "Vision-guided navigation for XGO2 robodog with edge ML inference, Bedrock reasoning, and LCD feedback."
+ComponentPublisher: XGO
+ComponentDependencies:
+  aws.greengrass.Nucleus:
+    VersionRequirement: ">=2.0.0"
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=2.0.0"
+ComponentConfiguration:
+  DefaultConfiguration:
+    confidenceThreshold: "0.50"
+    accessControl:
+      aws.greengrass.ipc.mqttproxy:
+        "com.xgo.VisionNavigation:mqttproxy:1":
+          policyDescription: "Allow publish/subscribe on vision topics"
+          operations:
+            - "aws.greengrass#PublishToIoTCore"
+            - "aws.greengrass#SubscribeToIoTCore"
+          resources:
+            - "xgo-robodog/#"
+        "com.xgo.VisionNavigation:mqttproxy:2":
+          policyDescription: "Allow publish vision telemetry"
+          operations:
+            - "aws.greengrass#PublishToIoTCore"
+          resources:
+            - "xgo-robodog/vision/#"
+        "com.xgo.VisionNavigation:mqttproxy:3":
+          policyDescription: "Allow publish/subscribe on grip topics"
+          operations:
+            - "aws.greengrass#PublishToIoTCore"
+            - "aws.greengrass#SubscribeToIoTCore"
+          resources:
+            - "xgo-robodog/grip/#"
+Manifests:
+  - Platform:
+      os: linux
+      architecture: aarch64
+    Lifecycle:
+      install:
+        Script: pip3 install -r {artifacts:path}/requirements.txt
+        RequiresPrivilege: "true"
+      run:
+        Script: |
+          killall -9 -f main.py 2>/dev/null || true
+          sleep 1
+          export PYTHONPATH="/home/pi/.local/lib/python3.9/site-packages:/home/pi/cm4-main:${PYTHONPATH}"
+          python3 -u {artifacts:path}/main.py --model-dir {artifacts:decompressedPath}/model --confidence-threshold {configuration:/confidenceThreshold}
+        RequiresPrivilege: "true"
+      shutdown:
+        Script: |
+          killall -9 -f main.py 2>/dev/null || true
+        RequiresPrivilege: "true"
+    Artifacts:
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/main.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/vision_inference.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/nav_controller.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/bedrock_reasoner.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/lcd_display.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/requirements.txt"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/labels.txt"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/grip_controller.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/depth_estimator.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/coordinate_mapper.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/grip_reasoner.py"
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/model.zip"
+        Unarchive: ZIP
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.VisionNavigation/{version}/depth_model.zip"
+        Unarchive: ZIP
