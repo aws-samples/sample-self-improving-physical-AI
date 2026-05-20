@@ -1,0 +1,8 @@
+{
+  "targetArn": "arn:aws:iot:us-east-1:654654616949:thing/xgo-robodog",
+  "components": {
+    "com.xgo.VisionNavigation": {
+      "componentVersion": "{version}"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Zumi AWS IoT Core Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=/home/pi/zumi-iot
+ExecStart=/bin/bash -c '/usr/bin/python3 -u /home/pi/zumi-iot/zumi_iot.py >> /home/pi/zumi-iot/zumi_iot.log 2>&1'
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

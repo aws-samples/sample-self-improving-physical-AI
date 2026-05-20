@@ -1,0 +1,12 @@
+{
+    "coreDevices": [
+        {
+            "coreDeviceThingName": "xgo-robodog",
+            "status": "HEALTHY",
+            "lastStatusUpdateTimestamp": "2026-04-13T12:00:38.367000+08:00",
+            "platform": "linux",
+            "architecture": "aarch64",
+            "runtime": "aws_nucleus_classic"
+        }
+    ]
+}

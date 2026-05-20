@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zumi Chatbot</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #16213e;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #0f3460;
+  }
+  header h1 { font-size: 18px; }
+  header h1 span { color: #e94560; }
+  #robot-selector {
+    background: #0f3460;
+    color: #eee;
+    border: 1px solid #0f3460;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+  }
+  #robot-selector:hover { border-color: #e94560; }
+  #reset-btn {
+    background: #0f3460;
+    color: #eee;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #reset-btn:hover { background: #e94560; }
+  #chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    line-height: 1.5;
+    font-size: 14px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: #0f3460;
+    border-bottom-right-radius: 2px;
+  }
+  .msg.bot {
+    align-self: flex-start;
+    background: #16213e;
+    border-bottom-left-radius: 2px;
+    border: 1px solid #0f3460;
+  }
+  .msg.bot img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 8px;
+    display: block;
+  }
+  .steps-container {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #111;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    line-height: 1.6;
+    border-left: 3px solid #0f3460;
+  }
+  .steps-header {
+    color: #888;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .step { margin-bottom: 4px; padding: 3px 0; }
+  .step-reasoning { color: #a0a0ff; white-space: pre-wrap; }
+  .step-tool-call { color: #e94560; }
+  .step-tool-result { color: #4ade80; word-break: break-all; }
+  .step-separator { border-top: 1px solid #222; margin: 6px 0; }
+  .step-layer {
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-right: 4px;
+  }
+  .step-layer-perception { background: #2d4a7a; }
+  .step-layer-reasoning { background: #4a2d7a; }
+  .step-layer-act { background: #7a4a2d; }
+  .step-layer-governance { background: #2d7a4a; }
+  #input-area {
+    padding: 12px 16px;
+    background: #16213e;
+    border-top: 1px solid #0f3460;
+    display: flex;
+    gap: 8px;
+  }
+  #msg-input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #0f3460;
+    background: #1a1a2e;
+    color: #eee;
+    font-size: 14px;
+    outline: none;
+  }
+  #msg-input:focus { border-color: #e94560; }
+  #send-btn {
+    background: #e94560;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .typing { color: #888; font-style: italic; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="page-title">🤖 <span id="robot-name">Zumi</span> Chatbot</h1>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <select id="robot-selector" onchange="selectRobot(this.value)">
+      <!-- Populated dynamically -->
+    </select>
+    <button id="reset-btn" onclick="resetChat()">New Chat</button>
+  </div>
+</header>
+
+<div id="chat-area">
+</div>
+
+<div id="input-area">
+  <input id="msg-input" type="text" placeholder="Tell Zumi what to do..." autocomplete="off" />
+  <button id="send-btn" onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+const chatArea = document.getElementById('chat-area');
+const msgInput = document.getElementById('msg-input');
+const sendBtn  = document.getElementById('send-btn');
+
+// Store robot data for greeting messages
+let robotsData = [];
+
+msgInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !sendBtn.disabled) sendMessage();
+});
+
+function addMessage(text, role, imageUrl, steps) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+
+  // Show reasoning steps inline BEFORE the reply text
+  if (steps && steps.length > 0) {
+    const container = document.createElement('div');
+    container.className = 'steps-container';
+
+    const header = document.createElement('div');
+    header.className = 'steps-header';
+    header.textContent = '🤖 Agent Reasoning & Actions';
+    container.appendChild(header);
+
+    let prevType = null;
+    steps.forEach((s) => {
+      // Add separator between different step groups (reasoning → tool, tool → reasoning)
+      if (prevType && prevType === 'tool_result' && s.type === 'reasoning') {
+        const sep = document.createElement('div');
+        sep.className = 'step-separator';
+        container.appendChild(sep);
+      }
+
+      const stepDiv = document.createElement('div');
+      stepDiv.className = 'step';
+
+      // Build layer badge prefix if layer field is present
+      var layerBadge = '';
+      if (s.layer) {
+        var layerEmojis = {
+          perception: '👁',
+          reasoning: '🧠',
+          act: '⚡',
+          governance: '🛡'
+        };
+        var emoji = layerEmojis[s.layer] || '';
+        if (emoji) {
+          layerBadge = '<span class="step-layer step-layer-' + escapeHtml(s.layer) + '">' + emoji + '</span> ';
+        }
+      }
+
+      if (s.type === 'reasoning') {
+        stepDiv.innerHTML = layerBadge + '<span class="step-reasoning">💭 ' + escapeHtml(s.text) + '</span>';
+      } else if (s.type === 'tool_call') {
+        const params = JSON.stringify(s.input || {}, null, 0);
+        stepDiv.innerHTML = layerBadge + '<span class="step-tool-call">🔧 ' + escapeHtml(s.tool) + '(' + escapeHtml(params) + ')</span>';
+      } else if (s.type === 'tool_result') {
+        const res = JSON.stringify(s.result || {}, null, 0);
+        stepDiv.innerHTML = layerBadge + '<span class="step-tool-result">✅ ' + escapeHtml(s.tool) + ' → ' + escapeHtml(res) + '</span>';
+      }
+      container.appendChild(stepDiv);
+      prevType = s.type;
+    });
+
+    div.appendChild(container);
+  }
+
+  const textNode = document.createElement('span');
+  textNode.textContent = text;
+  div.appendChild(textNode);
+
+  if (imageUrl) {
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = 'Photo from ' + document.getElementById('robot-name').textContent;
+    img.loading = 'lazy';
+    div.appendChild(img);
+  }
+
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text) return;
+
+  addMessage(text, 'user');
+  msgInput.value = '';
+  sendBtn.disabled = true;
+
+  const typing = document.createElement('div');
+  typing.className = 'typing';
+  typing.textContent = document.getElementById('robot-name').textContent + ' is thinking...';
+  chatArea.appendChild(typing);
+  chatArea.scrollTop = chatArea.scrollHeight;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+    const data = await res.json();
+    typing.remove();
+    addMessage(data.reply, 'bot', data.image_url, data.steps);
+  } catch (err) {
+    typing.remove();
+    addMessage('Error: ' + err.message, 'bot');
+  } finally {
+    sendBtn.disabled = false;
+    msgInput.focus();
+  }
+}
+
+async function resetChat() {
+  await fetch('/api/reset', { method: 'POST' });
+  chatArea.innerHTML = '';
+  const robotId = document.getElementById('robot-selector').value;
+  const displayName = document.getElementById('robot-name').textContent;
+  addMessage(getGreeting(robotId, displayName), 'bot');
+}
+
+function getGreeting(robotId, displayName) {
+  if (robotId === 'zumi') {
+    return "Hi! I'm Zumi Bot. I can control your Zumi robot — try asking me to turn on the lights, play a sound, show an emotion, take a photo, or read the sensors!";
+  } else if (robotId === 'xgo2') {
+    return "Hi! I'm XGO2 Bot. I can control the XGO2 robodog — navigate to objects using vision, check navigation status, and stop navigation. What would you like to do?";
+  }
+  return "Hi! I'm " + displayName + " Bot. What would you like to do?";
+}
+
+function updateTitle(displayName) {
+  document.title = displayName + ' Chatbot';
+  document.getElementById('robot-name').textContent = displayName;
+}
+
+async function loadRobots() {
+  try {
+    const [robotsRes, activeRes] = await Promise.all([
+      fetch('/api/robots'),
+      fetch('/api/active-robot'),
+    ]);
+    const robots = await robotsRes.json();
+    const active = await activeRes.json();
+
+    robotsData = robots;
+    const selector = document.getElementById('robot-selector');
+    selector.innerHTML = '';
+
+    robots.forEach(function(r) {
+      const opt = document.createElement('option');
+      opt.value = r.robot_id;
+      opt.textContent = r.display_name;
+      if (r.robot_id === active.robot_id) opt.selected = true;
+      selector.appendChild(opt);
+    });
+
+    updateTitle(active.display_name);
+    // Show greeting for the active robot
+    addMessage(getGreeting(active.robot_id, active.display_name), 'bot');
+  } catch (err) {
+    console.error('Failed to load robots:', err);
+    // Fallback: show default Zumi greeting if API is unavailable
+    addMessage(getGreeting('zumi', 'Zumi'), 'bot');
+  }
+}
+
+async function selectRobot(robotId) {
+  try {
+    const res = await fetch('/api/select-robot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ robot_id: robotId }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Error: ' + (err.error || 'Failed to switch robot'));
+      // Revert selector to current active robot
+      const activeRes = await fetch('/api/active-robot');
+      const active = await activeRes.json();
+      document.getElementById('robot-selector').value = active.robot_id;
+      return;
+    }
+
+    const data = await res.json();
+    updateTitle(data.display_name);
+
+    // Clear chat and show greeting for the new robot
+    chatArea.innerHTML = '';
+    addMessage(getGreeting(robotId, data.display_name), 'bot');
+  } catch (err) {
+    console.error('Failed to select robot:', err);
+  }
+}
+
+// Load robots on page load
+loadRobots();
+</script>
+
+</body>
+</html>

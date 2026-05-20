@@ -1,0 +1,26 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: com.xgo.SimpleCameraTest
+ComponentVersion: "1.0.0"
+ComponentDescription: Display the XGO2 camera feed on the robot LCD screen.
+ComponentPublisher: XGO
+ComponentDependencies:
+  aws.greengrass.Nucleus:
+    VersionRequirement: ">=2.0.0"
+Manifests:
+  - Platform:
+      os: linux
+      architecture: aarch64
+    Lifecycle:
+      run:
+        Script: |
+          killall -9 python3 2>/dev/null || true
+          sleep 1
+          python3 -u {artifacts:path}/show_camera.py
+        RequiresPrivilege: "true"
+      shutdown:
+        Script: |
+          killall -9 -f show_camera.py 2>/dev/null || true
+        RequiresPrivilege: "true"
+    Artifacts:
+      - URI: "s3://654654616949-use1-greengrass/artifacts/com.xgo.SimpleCameraTest/1.0.0/show_camera.py"

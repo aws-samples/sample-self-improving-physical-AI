@@ -1,0 +1,15 @@
+# Python dependencies for XGO2 Vision Navigation Greengrass component
+# Installed during component lifecycle 'install' phase via pip3
+#
+# Note: The following are pre-installed on the XGO2 device and should NOT
+# be listed here (they may conflict with system packages):
+#   - xgolib (robot motion control)
+#   - xgoedu (built-in ML detectors)
+#   - LCD_2inch (SPI display driver)
+#   - RPi.GPIO (GPIO access)
+#   - opencv-python (cv2 — system-installed)
+
+boto3>=1.34.0
+awsiotsdk>=1.0.0
+numpy>=1.21.0
+Pillow>=9.0.0
