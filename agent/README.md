@@ -63,3 +63,10 @@ User (natural language)
 2. Deploy device code → `example/zumi/` or `example/xgo2/`
 3. Start the agent → `bedrock-converse/README.md`
 4. Open browser chat UI and send commands
+
+### [Articraft MCP](./mcp-articraft/)
+MCP servers for articulated 3D asset generation and retrieval. Provides:
+- Generate new articulated 3D models (URDF) from text descriptions via Articraft
+- Search/retrieve from 10K existing assets (Articraft-10K dataset on HuggingFace)
+- Runs on ECS Fargate, connects to AgentCore Gateway via SSE transport
+- Assets load directly into Isaac Sim for robot manipulation simulation

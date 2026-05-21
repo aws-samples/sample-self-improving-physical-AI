@@ -1,0 +1,254 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Articraft MCP Server infrastructure (ECS Fargate + S3 + DynamoDB + Bedrock KB)
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to deploy into
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for Fargate tasks (need internet access for LLM API calls)
+  ArticraftImage:
+    Type: String
+    Description: ECR image URI for the Articraft MCP server
+    Default: ''
+
+Resources:
+  # ── S3 Bucket for assets ────────────────────────────────────────
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'articraft-assets-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: CleanupTempFiles
+            Prefix: generated/
+            ExpirationInDays: 30
+            Status: Enabled
+
+  # ── DynamoDB for job tracking ───────────────────────────────────
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: articraft-jobs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: job_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: job_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # ── IAM Role for ECS Tasks ─────────────────────────────────────
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: articraft-mcp-execution-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: articraft-mcp-task-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ArticraftAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - s3:HeadObject
+                Resource:
+                  - !GetAtt AssetsBucket.Arn
+                  - !Sub '${AssetsBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource: !GetAtt JobsTable.Arn
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: 'arn:aws:bedrock:*::foundation-model/*'
+              - Effect: Allow
+                Action:
+                  - bedrock-agent-runtime:Retrieve
+                Resource: '*'
+
+  # ── ECS Cluster ─────────────────────────────────────────────────
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: articraft-mcp
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+
+  # ── Task Definition: Generator MCP Server ───────────────────────
+  GeneratorTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: articraft-generator
+      Cpu: '2048'
+      Memory: '8192'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: generator
+          Image: !Ref ArticraftImage
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: MCP_TRANSPORT
+              Value: sse
+            - Name: MCP_PORT
+              Value: '8080'
+            - Name: ARTICRAFT_S3_BUCKET
+              Value: !Ref AssetsBucket
+            - Name: JOBS_TABLE
+              Value: !Ref JobsTable
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: ARTICRAFT_MODEL
+              Value: anthropic.claude-sonnet-4-20250514
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: generator
+
+  # ── Task Definition: Knowledge Base MCP Server ──────────────────
+  KBTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: articraft-kb
+      Cpu: '512'
+      Memory: '1024'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: knowledge-base
+          Image: !Ref ArticraftImage
+          Essential: true
+          Command: ['python', 'knowledge_base.py']
+          PortMappings:
+            - ContainerPort: 8081
+              Protocol: tcp
+          Environment:
+            - Name: MCP_TRANSPORT
+              Value: sse
+            - Name: MCP_PORT
+              Value: '8081'
+            - Name: ARTICRAFT_S3_BUCKET
+              Value: !Ref AssetsBucket
+            - Name: ARTICRAFT_KB_ID
+              Value: ''  # Set after KB creation
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: kb
+
+  # ── ECS Services ────────────────────────────────────────────────
+  GeneratorService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: articraft-generator
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref GeneratorTaskDef
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
+          SecurityGroups:
+            - !Ref ServiceSG
+
+  KBService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: articraft-kb
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref KBTaskDef
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
+          SecurityGroups:
+            - !Ref ServiceSG
+
+  # ── Security Group ──────────────────────────────────────────────
+  ServiceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Articraft MCP servers
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8081
+          CidrIp: 10.0.0.0/8  # Internal VPC only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  # ── CloudWatch Logs ─────────────────────────────────────────────
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/articraft-mcp
+      RetentionInDays: 14
+
+Outputs:
+  ClusterArn:
+    Value: !GetAtt Cluster.Arn
+  AssetsBucket:
+    Value: !Ref AssetsBucket
+  JobsTable:
+    Value: !Ref JobsTable
+  GeneratorServiceUrl:
+    Description: Generator MCP Server endpoint (update after deployment with task IP)
+    Value: !Sub 'http://<task-ip>:8080/sse'
+  KBServiceUrl:
+    Description: Knowledge Base MCP Server endpoint
+    Value: !Sub 'http://<task-ip>:8081/sse'
