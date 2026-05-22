@@ -71,7 +71,8 @@ uvicorn app:app --reload --port 8000
 │   ├── bedrock-converse/      # AWS Bedrock multi-agent (Act, Perception, Governance)
 │   ├── openclaw/              # OpenClaw agent (Telegram + Isaac Sim)
 │   ├── hermes/                # Hermes Agent (self-improving loop)
-│   └── aws-deployment/        # AWS deployment guide
+│   ├── aws-deployment/        # AWS deployment guide
+│   └── mcp-articraft/         # Articraft MCP server (search + generate 3D assets)
 ├── scripts/
 │   ├── leisaac/               # Kitchen orange picking (Isaac Sim demo)
 │   ├── sim2real/              # Sim2Real memory pipeline
@@ -102,6 +103,45 @@ uvicorn app:app --reload --port 8000
 ```
 
 ## AWS Services Used
+## Articraft MCP Server (3D Asset Generation & Search)
+
+Generate and search articulated 3D assets via [Articraft-10K](https://huggingface.co/datasets/camvsl/Articraft-10K) through AWS Bedrock AgentCore Gateway (MCP protocol).
+
+```
+OpenClaw → AgentCore Gateway (MCP) → Lambda (dispatcher)
+                                        ├── Bedrock KB (search 10K assets)
+                                        └── ECS Fargate (generate new assets)
+                                              → Bedrock (Claude Opus) → CadQuery → URDF + STL meshes → S3
+```
+
+### Tools
+
+| Tool | Description |
+|------|------------|
+| `search_assets` | Semantic search across 10,000 articulated 3D objects |
+| `get_asset_urdf` | Download URDF package for any asset |
+| `get_asset_metadata` | Detailed metadata (joints, parts, files) |
+| `generate_asset` | Generate new URDF from text description (async) |
+| `get_generation_status` | Poll generation job progress |
+| `fork_asset` | Modify existing asset (async) |
+| `list_categories` | Browse 10 object categories |
+| `list_dataset_stats` | Dataset overview |
+
+### Quick Start
+
+```bash
+# Search for assets
+mcporter call articraft.search_assets query="robot arm with gripper"
+
+# Generate a new asset (~3 min)
+mcporter call articraft.generate_asset description="desk lamp with two hinged arms"
+
+# Check status
+mcporter call articraft.get_generation_status job_id="<job-id>"
+```
+
+See [`agent/mcp-articraft/README.md`](agent/mcp-articraft/README.md) for deployment details.
+
 
 | Service | Purpose |
 |---------|---------|
@@ -112,6 +152,9 @@ uvicorn app:app --reload --port 8000
 | **OpenSearch Serverless** | Vector embeddings for RAG |
 | **S3** | Knowledge docs + photo upload (presigned URLs) |
 | **SageMaker Neo** | Model compilation for edge devices |
+| **Bedrock AgentCore** | MCP Gateway for tool orchestration |
+| **ECS Fargate** | Async 3D asset generation (CadQuery) |
+| **ECR** | Container registry for generator image |
 
 ## Sim2Real Memory Pipeline
 
@@ -180,6 +223,7 @@ aws cloudformation create-stack \
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent) — Self-improving AI agent
 - [OpenClaw](https://github.com/openclaw/openclaw) — Personal AI agent framework
 - [Telekinesis](https://docs.telekinesis.ai/) — Physical AI skill library
+- [Articraft-10K](https://huggingface.co/datasets/camvsl/Articraft-10K) — 10,000 articulated 3D objects in URDF format
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) — Open-source robot learning
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) — Robot simulation
 
