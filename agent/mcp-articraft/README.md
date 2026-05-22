@@ -210,3 +210,28 @@ mcp inspect server/generator.py
 ```
 
 Place in `~/.openclaw/workspace/config/mcporter.json`.
+
+## Generator (ECS Fargate)
+
+Architecture:
+```
+Lambda (dispatcher) → ECS RunTask → Bedrock (Claude Opus) → CadQuery → STL meshes → URDF → S3
+```
+
+Model: `global.anthropic.claude-opus-4-6-v1` (Bedrock)
+
+Flow:
+1. `generate_asset(description)` → Lambda creates DynamoDB job, launches ECS task
+2. ECS container calls Bedrock to generate CadQuery Python code
+3. CadQuery executes, produces STL mesh files
+4. URDF assembled with joints
+5. All files uploaded to S3, DynamoDB updated
+6. `get_generation_status(job_id)` returns presigned download URL
+
+### ECS Resources
+- Cluster: `articraft`
+- Task Definition: `articraft-generator` (latest)
+- Image: `412381761882.dkr.ecr.us-west-2.amazonaws.com/articraft-generator:latest`
+- CPU: 1 vCPU, Memory: 2GB
+- Subnet: Public (needs internet for Bedrock API via VPC endpoint)
+- Security Group: Must match VPC endpoint SG allowlist
