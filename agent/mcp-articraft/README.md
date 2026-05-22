@@ -181,3 +181,32 @@ mcp inspect server/generator.py
 | DynamoDB (jobs) | < $0.01/month |
 | Bedrock KB (RAG) | $0.10/sync + retrieval |
 | LLM generation (per asset) | $0.50-2.00 |
+
+## Deployed Infrastructure
+
+| Resource | ID / URL |
+|----------|----------|
+| AgentCore Gateway | `articraft-mcp-gateway-c45ssqtbjg` |
+| Gateway URL | `https://articraft-mcp-gateway-c45ssqtbjg.gateway.bedrock-agentcore.us-west-2.amazonaws.com/mcp` |
+| Gateway Target | `articraft-kb` (ID: `USJXUPZVAH`) |
+| Lambda | `articraft-kb-mcp` |
+| Bedrock KB | `Z4XPFY4Y3C` (500 docs) |
+| S3 Bucket | `articraft-assets-412381761882` |
+| DynamoDB | `articraft-jobs` |
+| IAM (Gateway) | `articraft-agentcore-gateway-role` |
+| IAM (Lambda) | `articraft-mcp-lambda-role` |
+
+### OpenClaw mcporter Config
+
+```json
+{
+  "mcpServers": {
+    "articraft": {
+      "type": "sse",
+      "url": "https://articraft-mcp-gateway-c45ssqtbjg.gateway.bedrock-agentcore.us-west-2.amazonaws.com/mcp"
+    }
+  }
+}
+```
+
+Place in `~/.openclaw/workspace/config/mcporter.json`.

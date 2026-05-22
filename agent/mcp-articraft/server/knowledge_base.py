@@ -27,7 +27,8 @@ s3 = boto3.client("s3", region_name=S3_REGION)
 
 mcp = FastMCP(
     "articraft-knowledge-base",
-    description="Search and retrieve existing articulated 3D assets from Articraft-10K dataset",
+    host="0.0.0.0",
+    port=int(os.environ.get("MCP_PORT", "8081")),
 )
 
 
@@ -227,7 +228,6 @@ if __name__ == "__main__":
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
 
     if transport == "sse":
-        port = int(os.environ.get("MCP_PORT", "8081"))
-        mcp.run(transport="sse", port=port)
+        mcp.run(transport="sse")
     else:
         mcp.run(transport="stdio")
