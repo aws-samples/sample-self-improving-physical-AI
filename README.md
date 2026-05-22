@@ -1,7 +1,7 @@
 <!-- Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. -->
 <!-- SPDX-License-Identifier: MIT-0 -->
 
-# Sim2Real Robot Platform with Iterative Learning
+# Robot Agent Platform with Iterative Learning
 
 A **robotics platform** that bridges simulation and reality through iterative learning. AI agents orchestrate NVIDIA Isaac Sim for simulation, control physical robots (SO-ARM101, XGO2, Zumi) via AWS IoT, and use **agent memory** to learn from task execution — tracking success rates, grasp accuracy, and sim-to-real transfer fidelity across iterations.
 
