@@ -85,11 +85,13 @@ uvicorn app:app --reload --port 8000
 │   ├── provisioning/          # IoT Thing setup scripts
 │   └── greengrass/            # Greengrass deployment
 ├── infra/
-│   └── cloudformation.yaml    # AWS memory pipeline stack
+│   ├── cloudformation.yaml    # AWS memory pipeline stack
+│   └── cosmos-ec2.yaml        # Cosmos 3 NIM EC2 deployment
 ├── models/
 │   └── so101/                 # SO-ARM101 URDF
 ├── skill/
 │   ├── SKILL.md               # Isaac Sim skill
+│   ├── COSMOS_EC2.md           # Cosmos 3 world model deployment
 │   ├── LEISAAC_API.md         # Isaac Sim 6.0 API reference
 │   ├── SIM2REAL_MCP.md        # MCP memory skill
 │   ├── TELEKINESIS.md         # Telekinesis skill
@@ -127,7 +129,73 @@ OpenClaw → AgentCore Gateway (MCP) → Lambda (dispatcher)
 | `list_categories` | Browse 10 object categories |
 | `list_dataset_stats` | Dataset overview |
 
-### Quick Start
+#
+## Cosmos 3 World Model (World Simulation)
+
+[NVIDIA Cosmos 3](https://github.com/NVIDIA/Cosmos) is an omnimodal world model that generates video, sound, and action sequences — serving as the **world simulator** in the self-improving loop. Deploy on EC2 via NIM container for zero-config GPU inference.
+
+| Model | Size | GPU | Use Case |
+|-------|------|-----|----------|
+| Cosmos3-Super | 64B | 4× H100 | Highest quality synthetic data, teacher distillation |
+| Cosmos3-Nano | 16B | 1× H100 | Balanced speed/quality, production simulation |
+| Cosmos3-Edge | 4B | 1× L4 | Real-time robotic policy, edge reasoning |
+
+### Two Runtime Surfaces
+
+- **Generator** — Text/Image/Action → Video/Sound/Action (world simulation, synthetic rollouts, forward dynamics)
+- **Reasoner** — Text/Video → Text (physical reasoning, next-action prediction, plausibility analysis)
+
+### Integration with Self-Improving Loop
+
+```
+Agent (Bedrock) → [Plan action] → Cosmos Generator → [Simulate rollout video]
+                                                    ↓
+Agent (Bedrock) ← [Evaluate outcome] ← Cosmos Reasoner ← [Physical reasoning on video]
+                                                    ↓
+                                        [Update policy / retry]
+```
+
+### Deploy on EC2 (NIM Container)
+
+```bash
+# Deploy CloudFormation stack
+aws cloudformation deploy \
+  --template-file infra/cosmos-ec2.yaml \
+  --stack-name cosmos-nim \
+  --parameter-overrides \
+    NgcApiKey=<your-ngc-key> \
+    InstanceType=g6.xlarge \
+    CosmosModel=cosmos3-generator \
+    ModelSize=nano \
+    KeyPairName=<your-keypair> \
+    VpcId=<vpc-id> \
+    SubnetId=<subnet-id> \
+  --capabilities CAPABILITY_NAMED_IAM
+
+# Or run directly with Docker
+export NGC_API_KEY="<your-key>"
+echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
+
+docker run --rm --runtime=nvidia --gpus all \
+  --shm-size=32GB -e NGC_API_KEY=$NGC_API_KEY \
+  -p 8000:8000 nvcr.io/nim/nvidia/cosmos3-generator:1.0.0
+```
+
+### Test
+
+```bash
+# Health check
+curl -s http://localhost:8000/v1/health/ready
+
+# Generate robot simulation video
+curl -X POST http://localhost:8000/v1/cosmos/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A robotic arm picks up an orange from a kitchen counter", "num_frames": 121, "resolution": "480p"}'
+```
+
+See [`skill/COSMOS_EC2.md`](skill/COSMOS_EC2.md) for full deployment guide and MCP tool registration.
+
+## Quick Start
 
 ```bash
 # Search for assets
@@ -155,6 +223,7 @@ See [`agent/mcp-articraft/README.md`](agent/mcp-articraft/README.md) for deploym
 | **Bedrock AgentCore** | MCP Gateway for tool orchestration |
 | **ECS Fargate** | Async 3D asset generation (CadQuery) |
 | **ECR** | Container registry for generator image |
+| **EC2 (GPU)** | NVIDIA Cosmos NIM — world model inference |
 
 ## Sim2Real Memory Pipeline
 
@@ -226,6 +295,8 @@ aws cloudformation create-stack \
 - [Articraft-10K](https://huggingface.co/datasets/camvsl/Articraft-10K) — 10,000 articulated 3D objects in URDF format
 - [HuggingFace LeRobot](https://github.com/huggingface/lerobot) — Open-source robot learning
 - [NVIDIA Isaac Sim](https://developer.nvidia.com/isaac-sim) — Robot simulation
+- [NVIDIA Cosmos](https://github.com/NVIDIA/Cosmos) — Omnimodal world models for Physical AI
+- [Cosmos NIM Quickstart](https://docs.nvidia.com/nim/cosmos/latest/quickstart-guide.html) — NIM deployment guide
 
 ## License
 
