@@ -19,16 +19,6 @@
         "FASTMCP_LOG_LEVEL": "ERROR"
       },
       "description": "RAG retrieval from Physical AI simulation knowledge base"
-    },
-    "awslabs.s3-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.s3-mcp-server@latest"],
-      "env": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      },
-      "description": "Access simulation knowledge documents in S3"
     }
   }
 }

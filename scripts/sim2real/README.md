@@ -44,10 +44,14 @@ RAG over simulation knowledge. Agents can query:
 - "What failed approaches should I avoid?"
 
 ### 4. MCP Servers (awslabs/mcp)
-Three MCP servers provide tool access:
-- **DynamoDB MCP** — Query/write episodes
-- **Bedrock KB MCP** — RAG retrieval
-- **S3 MCP** — Read knowledge documents
+Two MCP servers provide tool access:
+- **DynamoDB MCP** (`awslabs.dynamodb-mcp-server`) — Query/write episodes
+- **Bedrock KB MCP** (`awslabs.bedrock-kb-retrieval-mcp-server`) — RAG retrieval over the
+  knowledge documents in the S3 bucket (the KB's data source)
+
+Only launch MCP servers whose package names are published on PyPI by AWS Labs
+(see https://github.com/awslabs/mcp). `uvx` resolves bare names from public PyPI,
+so an unpublished name can be claimed by a third party.
 
 ## Setup
 
